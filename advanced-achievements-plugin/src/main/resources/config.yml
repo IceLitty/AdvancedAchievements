@@ -198,6 +198,12 @@ AllAchievementsReceivedRewards:
 
 # Title shown on the root advancement.
 RootAdvancementTitle: Advanced Achievements
+RootAdvancementDescription: ""
+RootAdvancementIconId: BOOK
+RootAdvancementIconMeta: 0
+# Frame Type can be GOAL, TASK or CHALLENGE
+RootAdvancementFrameType: GOAL
+RootAdvancementShowToast: false
 
 # Background shown on the Advanced Achievements advancement tab.
 # Must be a resource location to any image in a resource pack.

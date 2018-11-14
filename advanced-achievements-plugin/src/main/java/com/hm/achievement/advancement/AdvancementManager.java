@@ -1,9 +1,6 @@
 package com.hm.achievement.advancement;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -27,7 +24,6 @@ import com.hm.achievement.category.MultipleAchievements;
 import com.hm.achievement.category.NormalAchievements;
 import com.hm.achievement.lifecycle.Reloadable;
 import com.hm.achievement.utils.MaterialHelper;
-import com.hm.achievement.utils.StringHelper;
 import com.hm.mcshared.file.CommentedYamlConfiguration;
 import com.hm.mcshared.particle.ReflectionUtils.PackageType;
 
@@ -69,8 +65,15 @@ public class AdvancementManager implements Reloadable {
 	private boolean configRegisterAdvancementDescriptions;
 	private boolean configHideAdvancements;
 	private String configRootAdvancementTitle;
+    private String configRootAdvancementDesc;
+    private Material configRootAdvancementIconId;
+    private int configRootAdvancementIconMeta;
+    private AdvancementType configRootAdvancementFrameType;
+    private boolean configRootAdvancementShowToast;
 	private String configBackgroundTexture;
 	private int generatedAdvancements;
+
+	private List<AchievementAdvancement> jsonList;
 
 	@Inject
 	public AdvancementManager(@Named("main") CommentedYamlConfiguration mainConfig,
@@ -86,6 +89,7 @@ public class AdvancementManager implements Reloadable {
 		this.materialHelper = materialHelper;
 		this.serverVersion = serverVersion;
 		unsafeValues = Bukkit.getUnsafe();
+		jsonList = new ArrayList<>();
 	}
 
 	@Override
@@ -93,6 +97,24 @@ public class AdvancementManager implements Reloadable {
 		configRegisterAdvancementDescriptions = mainConfig.getBoolean("RegisterAdvancementDescriptions", true);
 		configHideAdvancements = mainConfig.getBoolean("HideAdvancements", false);
 		configRootAdvancementTitle = mainConfig.getString("RootAdvancementTitle", "Advanced Achievements");
+        configRootAdvancementDesc = mainConfig.getString("RootAdvancementDescription", "");
+        configRootAdvancementIconId = materialHelper.matchMaterial(mainConfig.getString("RootAdvancementIconId", ""), Material.BOOK, "gui.yml (RootAdvancementIconId)");
+        configRootAdvancementIconMeta = mainConfig.getInt("RootAdvancementIconMeta", 0);
+        switch (mainConfig.getString("RootAdvancementFrameType", "GOAL")) {
+            case "GOAL":
+                configRootAdvancementFrameType = AdvancementType.GOAL;
+                break;
+            case "TASK":
+                configRootAdvancementFrameType = AdvancementType.TASK;
+                break;
+            case "CHALLENGE":
+                configRootAdvancementFrameType = AdvancementType.CHALLENGE;
+                break;
+            default:
+                configRootAdvancementFrameType = AdvancementType.GOAL;
+                break;
+        }
+        configRootAdvancementShowToast = mainConfig.getBoolean("RootAdvancementShowToast", false);
 		configBackgroundTexture = parseBackgroundTexture();
 	}
 
@@ -107,6 +129,9 @@ public class AdvancementManager implements Reloadable {
 		cleanupOldAchievementAdvancements();
 		registerParentAdvancement();
 		registerOtherAdvancements();
+		loadAdvancementJson();
+		Bukkit.getServer().reloadData();
+		logger.info("Generated " + generatedAdvancements + " new advancements.");
 	}
 
 	/**
@@ -151,11 +176,12 @@ public class AdvancementManager implements Reloadable {
 				unsafeValues.loadAdvancement(namespacedKey, AdvancementJsonHelper.toHiddenJson(configBackgroundTexture));
 			} else {
 				AchievementAdvancementBuilder builder = new AchievementAdvancementBuilder()
-						.iconItem(getInternalName(new ItemStack(Material.BOOK, 1, (short) 0)))
+						.iconItem(getInternalName(new ItemStack(configRootAdvancementIconId, 1, (short) configRootAdvancementIconMeta)))
 						.title(configRootAdvancementTitle)
-						.description("")
+						.description(configRootAdvancementDesc)
 						.background(configBackgroundTexture)
-						.type(AdvancementType.GOAL);
+						.type(configRootAdvancementFrameType)
+                        .toast(configRootAdvancementShowToast);
 
 				AchievementAdvancement aa = (serverVersion == 12 ? builder.iconData(Integer.toString(0)) : builder).build();
 				unsafeValues.loadAdvancement(namespacedKey, AdvancementJsonHelper.toJson(aa));
@@ -185,8 +211,6 @@ public class AdvancementManager implements Reloadable {
 				registerCategoryAdvancements(category, "." + section);
 			}
 		}
-		Bukkit.getServer().reloadData();
-		logger.info("Generated " + generatedAdvancements + " new advancements.");
 	}
 
 	/**
@@ -228,12 +252,26 @@ public class AdvancementManager implements Reloadable {
 		if (StringUtils.isEmpty(achDisplayName)) {
 			achDisplayName = achName;
 		}
-		// Strip colours as the advancements interface does not support them.
-		achDisplayName = StringHelper.removeFormattingCodes(achDisplayName);
+
+		String iconId = mainConfig.getString(configAchievement + ".IconId", "");
+		String iconMeta = mainConfig.getString(configAchievement + ".IconMeta", "");
+		Material iconMaterial;
+		int metadata = 0;
+		if (!StringUtils.isEmpty(iconMeta)) {
+			metadata = Integer.parseInt(iconMeta);
+		}
+		if (StringUtils.isEmpty(iconId)) {
+			String path = category + ".Item";
+			iconMaterial = materialHelper.matchMaterial(guiConfig.getString(path), Material.BOOK, "gui.yml (" + path + ")");
+			metadata = guiConfig.getInt(category + ".Metadata", 0);
+		} else {
+			iconMaterial = materialHelper.matchMaterial(iconId, Material.BOOK, "config.yml (" + configAchievement + ".IconId" + ")");
+		}
+		String icon = serverVersion == 12 ? getInternalName(new ItemStack(iconMaterial, 1, (short) metadata))
+				: iconMaterial.name().toLowerCase();
 
 		String achKey = getKey(achName);
 		NamespacedKey namespacedKey = new NamespacedKey(advancedAchievements, achKey);
-		int metadata = guiConfig.getInt(category + ".Metadata", 0);
 		String description = "";
 		if (configRegisterAdvancementDescriptions) {
 			// Give priority to the goal to stick with Vanilla naming of advancements.
@@ -241,24 +279,118 @@ public class AdvancementManager implements Reloadable {
 			if (!StringUtils.isNotBlank(description)) {
 				description = mainConfig.getString(configAchievement + ".Message", "");
 			}
-			description = StringHelper.removeFormattingCodes(description);
 		}
 
-		String path = category + ".Item";
-		Material material = materialHelper.matchMaterial(guiConfig.getString(path), Material.BOOK, "gui.yml (" + path + ")");
-		String icon = serverVersion == 12 ? getInternalName(new ItemStack(material, 1, (short) metadata))
-				: material.name().toLowerCase();
+		String parent = mainConfig.getString(configAchievement + ".Parent", "");
+		if (!StringUtils.isEmpty(parent)) {
+			parentKey = parent;
+        }
+
+        String type = mainConfig.getString(configAchievement + ".Type", "");
+		AdvancementType achType = lastAchievement ? AdvancementType.CHALLENGE : AdvancementType.TASK;
+        if (!StringUtils.isEmpty(type)) {
+            switch (type.toUpperCase()) {
+                case "GOAL":
+                    achType = AdvancementType.GOAL;
+                    break;
+                case "TASK":
+                    achType = AdvancementType.TASK;
+                    break;
+                case "CHALLENGE":
+                    achType = AdvancementType.CHALLENGE;
+                    break;
+            }
+        }
+
 		AchievementAdvancementBuilder builder = new AchievementAdvancementBuilder()
 				.iconItem(icon)
 				.title(achDisplayName)
 				.description(description)
-				.parent("advancedachievements:" + parentKey)
-				.type(lastAchievement ? AdvancementType.CHALLENGE : AdvancementType.TASK);
+				.parent(namespacedKey.getNamespace() + ":" + parentKey)
+				.type(achType)
+				.achName(achName);
+
+        boolean showToast = mainConfig.getBoolean(configAchievement + ".ShowToast", true);
+        builder = builder.toast(showToast);
+
+        boolean hidden = mainConfig.getBoolean(configAchievement + ".Hidden", false);
+        builder = builder.hidden(hidden);
 
 		AchievementAdvancement aa = (serverVersion == 12 ? builder.iconData(Integer.toString(metadata)) : builder).build();
-		unsafeValues.loadAdvancement(namespacedKey, AdvancementJsonHelper.toJson(aa));
+		jsonList.add(aa);
 		++generatedAdvancements;
 		return achKey;
+	}
+
+	private void loadAdvancementJson() {
+		int counter = 0;
+		while (!checkOrderAdvancementJsonList()) {
+			orderAdvancementJsonList();
+			counter++;
+			if (counter >= 10) {
+				logger.warning("Order json list over 10 times. Json file may load failed.");
+				break;
+			}
+		}
+		for (AchievementAdvancement aa : jsonList) {
+			String achKey = getKey(aa.getAchName());
+			NamespacedKey namespacedKey = new NamespacedKey(advancedAchievements, achKey);
+			unsafeValues.loadAdvancement(namespacedKey, AdvancementJsonHelper.toJson(aa));
+		}
+	}
+
+	private boolean checkOrderAdvancementJsonList() {
+		boolean order = true;
+		List<String> tempParentKey = new ArrayList<>();
+		for (int i = 0; i < jsonList.size(); i++) {
+			if (i == 0) {
+				if (!ADVANCED_ACHIEVEMENTS_PARENT.equals(jsonList.get(i).getParent().replace("advancedachievements:", ""))) {
+					order = false;
+				}
+			} else {
+				if (!ADVANCED_ACHIEVEMENTS_PARENT.equals(jsonList.get(i).getParent().replace("advancedachievements:", "")) && !tempParentKey.contains(jsonList.get(i).getParent().replace("advancedachievements:", ""))) {
+					order = false;
+				}
+			}
+			tempParentKey.add(jsonList.get(i).getAchName());
+		}
+		return order;
+	}
+
+	private void orderAdvancementJsonList() {
+		List<AchievementAdvancement> newList = new ArrayList<>();
+		List<Integer> notAdded = new ArrayList<>();
+		for (int i = 0; i < jsonList.size(); i++) {
+			if (newList.size() == 0) {
+				newList.add(jsonList.get(i));
+			} else {
+				boolean added = false;
+				for (int j = 0; j < newList.size(); j++) {
+					if (newList.get(j).getAchName().equals(jsonList.get(i).getParent().replace("advancedachievements:", ""))) {
+						newList.add(jsonList.get(i));
+						added = true;
+						break;
+					}
+				}
+				if (!added) {
+					notAdded.add(i);
+				}
+			}
+		}
+		if (notAdded.size() > 0) {
+			for (int i : notAdded) {
+				newList.add(jsonList.get(i));
+			}
+		}
+		List<String> tempa = new ArrayList<>();
+		List<String> tempb = new ArrayList<>();
+		for (AchievementAdvancement aa : jsonList) {
+			tempa.add(aa.getAchName());
+		}
+		for (AchievementAdvancement aa : newList) {
+			tempb.add(aa.getAchName());
+		}
+		jsonList = newList;
 	}
 
 	/**

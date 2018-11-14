@@ -17,9 +17,12 @@ public class AchievementAdvancement {
 	private final String parent;
 	private final String background;
 	private final String frame;
+	private final boolean showToast;
+	private final boolean hidden;
+	private final String achName;
 
 	private AchievementAdvancement(String iconItem, String iconData, String title, String description, String parent,
-			String background, String frame) {
+			String background, String frame, boolean showToast, boolean hidden, String achName) {
 		this.iconItem = iconItem;
 		this.iconData = iconData;
 		this.title = title;
@@ -27,6 +30,9 @@ public class AchievementAdvancement {
 		this.parent = parent;
 		this.background = background;
 		this.frame = frame;
+		this.showToast = showToast;
+		this.hidden = hidden;
+		this.achName = achName;
 	}
 
 	public String getIconItem() {
@@ -57,6 +63,18 @@ public class AchievementAdvancement {
 		return frame;
 	}
 
+	public boolean isShowToast() {
+		return showToast;
+	}
+
+	public boolean isHidden() {
+		return hidden;
+	}
+
+	public String getAchName() {
+		return achName;
+	}
+
 	public static class AchievementAdvancementBuilder {
 
 		private String iconItem;
@@ -66,6 +84,9 @@ public class AchievementAdvancement {
 		private String parent;
 		private String background;
 		private AdvancementType type;
+		private boolean toast = true;
+		private boolean hidden = false;
+		private String achName;
 
 		public AchievementAdvancementBuilder iconItem(String iconItem) {
 			this.iconItem = iconItem;
@@ -102,8 +123,23 @@ public class AchievementAdvancement {
 			return this;
 		}
 
+		public AchievementAdvancementBuilder toast(boolean showToast) {
+			this.toast = showToast;
+			return this;
+		}
+
+		public AchievementAdvancementBuilder hidden(boolean isHidden) {
+			this.hidden = isHidden;
+			return this;
+		}
+
+		public AchievementAdvancementBuilder achName(String achName) {
+			this.achName = achName;
+			return this;
+		}
+
 		public AchievementAdvancement build() {
-			return new AchievementAdvancement(iconItem, iconData, title, description, parent, background, type.toString());
+			return new AchievementAdvancement(iconItem, iconData, title, description, parent, background, type.toString(), toast, hidden, achName);
 		}
 
 	}

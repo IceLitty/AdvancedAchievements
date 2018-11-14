@@ -31,6 +31,8 @@ public class AdvancementJsonHelper {
 				"    \"title\":\"" + StringEscapeUtils.escapeJson(aa.getTitle()) + "\",\n" +
 				"    \"description\":\"" + StringEscapeUtils.escapeJson(aa.getDescription()) + "\",\n" +
 				"    \"frame\":\"" + aa.getFrame() + "\",\n" +
+				"    \"show_toast\":\"" + aa.isShowToast() + "\",\n" +
+				"    \"hidden\":\"" + aa.isHidden() + "\",\n" +
 				"    \"announce_to_chat\":false" +
 				getStringFieldOrLineBreak("background", aa.getBackground(), 4) +
 				"  }" +
