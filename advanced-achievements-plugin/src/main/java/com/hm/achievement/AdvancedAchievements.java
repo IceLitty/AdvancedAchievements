@@ -1,10 +1,12 @@
 package com.hm.achievement;
 
+import java.io.File;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.inject.Singleton;
 
+import com.hm.achievement.command.executable.GenerateCommand;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -48,6 +50,10 @@ public class AdvancedAchievements extends JavaPlugin {
 
 		try {
 			pluginLoader.loadAdvancedAchievements(true);
+			if (getServer().getPluginManager().getPlugin("Multiverse-Core") != null) {
+				getLogger().info("Check Multiverse-Core is installed! Plugin will auto re-generate vanilla advancement json file.");
+				getServer().dispatchCommand(getServer().getConsoleSender(), "aach generate");
+			}
 		} catch (PluginLoadError e) {
 			getLogger().log(Level.SEVERE,
 					"A non recoverable error was encountered while loading the plugin, disabling it:", e);
@@ -61,7 +67,32 @@ public class AdvancedAchievements extends JavaPlugin {
 
 	@Override
 	public void onDisable() {
+		if (getServer().getPluginManager().getPlugin("Multiverse-Core") != null) {
+			getLogger().info("Check Multiverse-Core is installed! Plugin will auto remove vanilla advancement json file.");
+		    String path = getServer().getWorlds().get(0).getWorldFolder().getPath() + "/data/advancements";
+			if (deleteDirectory(new File(path))) {
+				getLogger().info(String.format("Folder %s is removed.", path));
+			} else {
+				getLogger().warning(String.format("Folder %s removed failed.", path));
+			}
+		}
 		pluginLoader.disableAdvancedAchievements();
+	}
+
+	private static boolean deleteDirectory(File directory) {
+		if (directory.exists()) {
+			File[] files = directory.listFiles();
+			if (null != files) {
+				for (File file : files) {
+					if (file.isDirectory()) {
+						deleteDirectory(file);
+					} else {
+						file.delete();
+					}
+				}
+			}
+		}
+		return(directory.delete());
 	}
 
 	public AdvancedAchievementsAPI getAdvancedAchievementsAPI() {
