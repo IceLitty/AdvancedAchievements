@@ -6,7 +6,6 @@ import java.util.logging.Logger;
 
 import javax.inject.Singleton;
 
-import com.hm.achievement.command.executable.GenerateCommand;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
