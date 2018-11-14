@@ -68,7 +68,7 @@ public class AdvancedAchievements extends JavaPlugin {
 	public void onDisable() {
 		if (getServer().getPluginManager().getPlugin("Multiverse-Core") != null) {
 			getLogger().info("Check Multiverse-Core is installed! Plugin will auto remove vanilla advancement json file.");
-		    String path = getServer().getWorlds().get(0).getWorldFolder().getPath() + "/data/advancements";
+		    String path = getServer().getWorlds().get(0).getWorldFolder().getPath() + "/data/advancements/advancedachievements";
 			if (deleteDirectory(new File(path))) {
 				getLogger().info(String.format("Folder %s is removed.", path));
 			} else {
