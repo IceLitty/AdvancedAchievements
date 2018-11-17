@@ -327,8 +327,8 @@ public class AdvancementManager implements Reloadable {
 		while (!checkOrderAdvancementJsonList()) {
 			orderAdvancementJsonList();
 			counter++;
-			if (counter >= 10) {
-				logger.warning("Order json list over 10 times. Json file may load failed.");
+			if (counter >= 50) {
+				logger.warning("Order json list over 50 times. Json file may load failed.");
 				break;
 			}
 		}
