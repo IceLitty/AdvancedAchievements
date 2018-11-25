@@ -89,10 +89,10 @@
 	</build>
 
 	<dependencies>
-		<dependency>
-			<groupId>com.hm.achievement</groupId>
-			<artifactId>advanced-achievements-api</artifactId>
-		</dependency>
+		<!--<dependency>-->
+			<!--<groupId>com.hm.achievement</groupId>-->
+			<!--<artifactId>advanced-achievements-api</artifactId>-->
+		<!--</dependency>-->
 		<dependency>
 			<groupId>com.google.dagger</groupId>
 			<artifactId>dagger</artifactId>
